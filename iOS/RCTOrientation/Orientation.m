@@ -51,49 +51,24 @@ static UIInterfaceOrientationMask _orientation = UIInterfaceOrientationMaskAllBu
     return rootViewController;
 }
 
-- (void)forceOrientation:(UIInterfaceOrientationMask)orientation {
-    [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+- (void)forceOrientation: (UIInterfaceOrientationMask)orientation {
+    [[NSOperationQueue mainQueue] addOperationWithBlock:^ {
         if (@available(iOS 16, *)) {
             NSArray *array = [[[UIApplication sharedApplication] connectedScenes] allObjects];
             UIWindowScene *scene = (UIWindowScene *)array[0];
 
             for (UIWindow *window in scene.windows) {
-                UIViewController *vc = [self topViewControllerWithRootViewController:window.rootViewController];
+                UIViewController* vc = [self topViewControllerWithRootViewController:window.rootViewController];
                 if (vc) {
-                    [vc setNeedsStatusBarAppearanceUpdate];
-                    [vc setNeedsUpdateOfHomeIndicatorAutoHidden];
+                    [vc setNeedsUpdateOfSupportedInterfaceOrientations];
                 }
             }
 
-            UIInterfaceOrientationMask supportedOrientations = UIInterfaceOrientationMaskAll;
-            UIInterfaceOrientation o = UIInterfaceOrientationUnknown;
-            
-            if ((orientation & UIInterfaceOrientationMaskPortrait) != 0) {
-                supportedOrientations |= UIInterfaceOrientationMaskPortrait;
-                o = UIInterfaceOrientationPortrait;
-            }
-            
-            if ((orientation & UIInterfaceOrientationMaskPortraitUpsideDown) != 0) {
-                supportedOrientations |= UIInterfaceOrientationMaskPortraitUpsideDown;
-                o = UIInterfaceOrientationPortraitUpsideDown;
-            }
-            
-            if ((orientation & UIInterfaceOrientationMaskLandscapeLeft) != 0) {
-                supportedOrientations |= UIInterfaceOrientationMaskLandscapeLeft;
-                o = UIInterfaceOrientationLandscapeLeft;
-            }
-            
-            if ((orientation & UIInterfaceOrientationMaskLandscapeRight) != 0) {
-                supportedOrientations |= UIInterfaceOrientationMaskLandscapeRight;
-                o = UIInterfaceOrientationLandscapeRight;
-            }
-            
-            if ((orientation & UIInterfaceOrientationMaskAllButUpsideDown) != 0) {
-                supportedOrientations |= UIInterfaceOrientationMaskAllButUpsideDown;
-            }
-            
-            [[UIDevice currentDevice] setValue:@(supportedOrientations) forKey:@"supportedInterfaceOrientations"];
-            [[UIDevice currentDevice] setValue:@(o) forKey:@"orientation"];
+            UIWindowSceneGeometryPreferencesIOS *geometryPreferences = [[UIWindowSceneGeometryPreferencesIOS alloc] initWithInterfaceOrientations:orientation];
+            [scene requestGeometryUpdateWithPreferences:geometryPreferences errorHandler:^(NSError * _Nonnull error) {
+                NSLog(@"Error while trying to lock orientation: %@", error);
+            }];
+
         } else {
             UIInterfaceOrientation o = UIInterfaceOrientationUnknown;
             switch (orientation) {
@@ -106,25 +81,12 @@ static UIInterfaceOrientationMask _orientation = UIInterfaceOrientationMaskAllBu
                 case UIInterfaceOrientationMaskPortrait:
                     o = UIInterfaceOrientationPortrait;
                     break;
-                case UIInterfaceOrientationMaskPortraitUpsideDown:
-                    o = UIInterfaceOrientationPortraitUpsideDown;
-                    break;
-                case UIInterfaceOrientationMaskLandscape:
-                    o = UIInterfaceOrientationLandscapeLeft; // Choose one of the landscape orientations
-                    break;
-                case UIInterfaceOrientationMaskAllButUpsideDown:
-                    o = UIInterfaceOrientationLandscapeLeft; // Choose one of the landscape orientations
-                    break;
-                case UIInterfaceOrientationMaskAll:
-                    o = UIInterfaceOrientationPortrait; // Choose one of the portrait orientations
-                    break;
             }
             [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
-            [[UIDevice currentDevice] setValue:@(o) forKey:@"orientation"];
+            [[UIDevice currentDevice] setValue:[NSNumber numberWithInteger: o] forKey:@"orientation"];
         }
-    }];
+   }];
 }
-
 
 - (instancetype)init
 {
@@ -264,10 +226,6 @@ RCT_EXPORT_METHOD(lockToPortrait)
   #endif
   [Orientation setOrientation:UIInterfaceOrientationMaskPortrait];
   [self forceOrientation: UIInterfaceOrientationMaskPortrait];
-  [[NSOperationQueue mainQueue] addOperationWithBlock:^ {
-    [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
-    [[UIDevice currentDevice] setValue:[NSNumber numberWithInteger: UIInterfaceOrientationPortrait] forKey:@"orientation"];
-  }];
 
 }
 
@@ -281,17 +239,9 @@ RCT_EXPORT_METHOD(lockToLandscape)
   if ([orientationStr isEqualToString:@"LANDSCAPE-LEFT"]) {
     [Orientation setOrientation:UIInterfaceOrientationMaskLandscape];
     [self forceOrientation: UIInterfaceOrientationMaskLandscapeRight];
-    [[NSOperationQueue mainQueue] addOperationWithBlock:^ {
-      [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
-      [[UIDevice currentDevice] setValue:[NSNumber numberWithInteger: UIInterfaceOrientationLandscapeRight] forKey:@"orientation"];
-    }];
   } else {
     [Orientation setOrientation:UIInterfaceOrientationMaskLandscape];
     [self forceOrientation: UIInterfaceOrientationMaskLandscapeLeft];
-    [[NSOperationQueue mainQueue] addOperationWithBlock:^ {
-      [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
-      [[UIDevice currentDevice] setValue:[NSNumber numberWithInteger: UIInterfaceOrientationLandscapeLeft] forKey:@"orientation"];
-    }];
   }
 }
 
@@ -302,10 +252,6 @@ RCT_EXPORT_METHOD(lockToLandscapeLeft)
   #endif
     [Orientation setOrientation:UIInterfaceOrientationMaskLandscapeLeft];
     [self forceOrientation: UIInterfaceOrientationMaskLandscapeLeft];
-    [[NSOperationQueue mainQueue] addOperationWithBlock:^ {
-        [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
-        [[UIDevice currentDevice] setValue:[NSNumber numberWithInteger: UIInterfaceOrientationLandscapeLeft] forKey:@"orientation"];
-    }];
 
 }
 
@@ -316,11 +262,6 @@ RCT_EXPORT_METHOD(lockToLandscapeRight)
   #endif
   [Orientation setOrientation:UIInterfaceOrientationMaskLandscapeRight];
   [self forceOrientation: UIInterfaceOrientationMaskLandscapeRight];
-  [[NSOperationQueue mainQueue] addOperationWithBlock:^ {
-    // this seems counter intuitive
-    [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
-    [[UIDevice currentDevice] setValue:[NSNumber numberWithInteger: UIInterfaceOrientationLandscapeRight] forKey:@"orientation"];
-  }];
 
 }
 
