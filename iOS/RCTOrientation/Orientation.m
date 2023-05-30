@@ -51,24 +51,49 @@ static UIInterfaceOrientationMask _orientation = UIInterfaceOrientationMaskAllBu
     return rootViewController;
 }
 
-- (void)forceOrientation: (UIInterfaceOrientationMask)orientation {
-    [[NSOperationQueue mainQueue] addOperationWithBlock:^ {
+- (void)forceOrientation:(UIInterfaceOrientationMask)orientation {
+    [[NSOperationQueue mainQueue] addOperationWithBlock:^{
         if (@available(iOS 16, *)) {
             NSArray *array = [[[UIApplication sharedApplication] connectedScenes] allObjects];
             UIWindowScene *scene = (UIWindowScene *)array[0];
 
             for (UIWindow *window in scene.windows) {
-                UIViewController* vc = [self topViewControllerWithRootViewController:window.rootViewController];
+                UIViewController *vc = [self topViewControllerWithRootViewController:window.rootViewController];
                 if (vc) {
-                    [vc setNeedsUpdateOfSupportedInterfaceOrientations];
+                    [vc setNeedsStatusBarAppearanceUpdate];
+                    [vc setNeedsUpdateOfHomeIndicatorAutoHidden];
                 }
             }
 
-            UIWindowSceneGeometryPreferencesIOS *geometryPreferences = [[UIWindowSceneGeometryPreferencesIOS alloc] initWithInterfaceOrientations:orientation];
-            [scene requestGeometryUpdateWithPreferences:geometryPreferences errorHandler:^(NSError * _Nonnull error) {
-                NSLog(@"Error while trying to lock orientation: %@", error);
-            }];
-
+            UIInterfaceOrientationMask supportedOrientations = UIInterfaceOrientationMaskAll;
+            UIInterfaceOrientation o = UIInterfaceOrientationUnknown;
+            
+            if ((orientation & UIInterfaceOrientationMaskPortrait) != 0) {
+                supportedOrientations |= UIInterfaceOrientationMaskPortrait;
+                o = UIInterfaceOrientationPortrait;
+            }
+            
+            if ((orientation & UIInterfaceOrientationMaskPortraitUpsideDown) != 0) {
+                supportedOrientations |= UIInterfaceOrientationMaskPortraitUpsideDown;
+                o = UIInterfaceOrientationPortraitUpsideDown;
+            }
+            
+            if ((orientation & UIInterfaceOrientationMaskLandscapeLeft) != 0) {
+                supportedOrientations |= UIInterfaceOrientationMaskLandscapeLeft;
+                o = UIInterfaceOrientationLandscapeLeft;
+            }
+            
+            if ((orientation & UIInterfaceOrientationMaskLandscapeRight) != 0) {
+                supportedOrientations |= UIInterfaceOrientationMaskLandscapeRight;
+                o = UIInterfaceOrientationLandscapeRight;
+            }
+            
+            if ((orientation & UIInterfaceOrientationMaskAllButUpsideDown) != 0) {
+                supportedOrientations |= UIInterfaceOrientationMaskAllButUpsideDown;
+            }
+            
+            [[UIDevice currentDevice] setValue:@(supportedOrientations) forKey:@"supportedInterfaceOrientations"];
+            [[UIDevice currentDevice] setValue:@(o) forKey:@"orientation"];
         } else {
             UIInterfaceOrientation o = UIInterfaceOrientationUnknown;
             switch (orientation) {
@@ -81,12 +106,25 @@ static UIInterfaceOrientationMask _orientation = UIInterfaceOrientationMaskAllBu
                 case UIInterfaceOrientationMaskPortrait:
                     o = UIInterfaceOrientationPortrait;
                     break;
+                case UIInterfaceOrientationMaskPortraitUpsideDown:
+                    o = UIInterfaceOrientationPortraitUpsideDown;
+                    break;
+                case UIInterfaceOrientationMaskLandscape:
+                    o = UIInterfaceOrientationLandscapeLeft; // Choose one of the landscape orientations
+                    break;
+                case UIInterfaceOrientationMaskAllButUpsideDown:
+                    o = UIInterfaceOrientationLandscapeLeft; // Choose one of the landscape orientations
+                    break;
+                case UIInterfaceOrientationMaskAll:
+                    o = UIInterfaceOrientationPortrait; // Choose one of the portrait orientations
+                    break;
             }
             [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
-            [[UIDevice currentDevice] setValue:[NSNumber numberWithInteger: o] forKey:@"orientation"];
+            [[UIDevice currentDevice] setValue:@(o) forKey:@"orientation"];
         }
-   }];
+    }];
 }
+
 
 - (instancetype)init
 {
