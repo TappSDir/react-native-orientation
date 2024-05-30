@@ -24,6 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.annotation.Nullable;
+import androidx.annotation.RequiresApi;
+import android.os.Build;
 
 public class OrientationModule extends ReactContextBaseJavaModule implements LifecycleEventListener{
     final BroadcastReceiver receiver;
